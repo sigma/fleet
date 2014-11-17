@@ -27,6 +27,7 @@ type MachineState struct {
 	PublicIP string
 	Metadata map[string]string
 	Version  string
+	Flags    map[string]bool
 }
 
 func (ms MachineState) ShortID() string {
@@ -58,6 +59,10 @@ func stackState(top, bottom MachineState) MachineState {
 	// metadata on the bottom.
 	if len(top.Metadata) > 0 {
 		state.Metadata = top.Metadata
+	}
+
+	if len(top.Flags) > 0 {
+		state.Flags = top.Flags
 	}
 
 	if top.Version != "" {

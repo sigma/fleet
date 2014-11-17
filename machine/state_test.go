@@ -92,6 +92,7 @@ var shortIDTests = []struct {
 			"5.6.7.8",
 			map[string]string{"foo": "bar"},
 			"",
+			map[string]bool{"frozen": true},
 		},
 		s: "595989bb",
 		l: "595989bb-cbb7-49ce-8726-722d6e157b4e",
