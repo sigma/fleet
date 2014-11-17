@@ -32,7 +32,8 @@ import (
 )
 
 const (
-	machineIDPath = "/etc/machine-id"
+	machineIDPath    = "/etc/machine-id"
+	machineFlagsPath = "/var/run/fleet/flags"
 )
 
 func NewCoreOSMachine(static MachineState, um unit.UnitManager) *CoreOSMachine {
@@ -108,11 +109,13 @@ func (m *CoreOSMachine) currentState() *MachineState {
 		log.Errorf("Error retrieving machineID: %v\n", err)
 		return nil
 	}
+	flags := readLocalFlags()
 	publicIP := getLocalIP()
 	return &MachineState{
 		ID:       id,
 		PublicIP: publicIP,
 		Metadata: make(map[string]string, 0),
+		Flags:    flags,
 	}
 }
 
@@ -133,6 +136,15 @@ func readLocalMachineID(root string) (string, error) {
 		return "", errors.New("found empty machineID")
 	}
 	return mID, nil
+}
+
+func readLocalFlags() map[string]bool {
+	files, _ := ioutil.ReadDir(machineFlagsPath)
+	m := make(map[string]bool, len(files))
+	for _, f := range files {
+		m[f.Name()] = true
+	}
+	return m
 }
 
 func getLocalIP() (got string) {
