@@ -175,12 +175,53 @@ func (ar *AgentReconciler) calculateTaskChainsForUnits(dState *AgentState, cStat
 			jobs.Add(dName)
 		}
 
+		syncPoints := make(chan chan interface{})
+		unblock := make(chan interface{})
+
+		go func() {
+			i := 0
+			for point := range syncPoints {
+				<-point
+				i++
+			}
+			for n := 0; n < i; n++ {
+				unblock <- n
+			}
+		}()
+
+		remainingChains := []taskChain{}
 		for _, name := range jobs.Values() {
 			tc := ar.calculateTaskChainForUnit(dState, cState, name)
 			if tc == nil {
 				continue
 			}
-			tcChan <- *tc
+			if len(tc.tasks) > 1 && tc.tasks[0].typ == taskTypeLoadUnit {
+				com := make(chan interface{})
+
+				loadC := taskChain{
+					unit:   tc.unit,
+					tasks:  tc.tasks[:1],
+					signal: com,
+				}
+				tcChan <- loadC
+				syncPoints <- com
+
+				// delay rest of the tasks until all loadUnit
+				// operations are completed.
+				// desired side-effet: let systemd handle inter-unit dependencies
+				tc.tasks = tc.tasks[1:]
+				if len(tc.tasks) != 0 {
+					tc.wait = unblock
+					remainingChains = append(remainingChains, *tc)
+				}
+			} else {
+				tcChan <- *tc
+			}
+		}
+		close(syncPoints)
+
+		for _, tc := range remainingChains {
+			tcChan <- tc
 		}
 
 		close(tcChan)

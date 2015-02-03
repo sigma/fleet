@@ -41,8 +41,10 @@ const (
 )
 
 type taskChain struct {
-	unit  *job.Unit
-	tasks []task
+	unit   *job.Unit
+	tasks  []task
+	wait   <-chan interface{}
+	signal chan<- interface{}
 }
 
 func newTaskChain(u *job.Unit, t ...task) taskChain {
@@ -97,6 +99,10 @@ func (tm *taskManager) Do(tc taskChain, a *Agent) (chan taskResult, error) {
 		return nil, errors.New("unable to handle task with nil Job")
 	}
 
+	if tc.wait != nil {
+		<-tc.wait
+	}
+
 	if tm.processing.Contains(tc.unit.Name) {
 		return nil, errors.New("task already in flight")
 	}
@@ -106,6 +112,11 @@ func (tm *taskManager) Do(tc taskChain, a *Agent) (chan taskResult, error) {
 
 	reschan := make(chan taskResult, len(tc.tasks))
 	go func() {
+		defer func() {
+			if tc.signal != nil {
+				tc.signal <- true
+			}
+		}()
 		defer tm.processing.Remove(tc.unit.Name)
 		for _, t := range tc.tasks {
 			t := t
