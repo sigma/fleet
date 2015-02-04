@@ -1,5 +1,4 @@
 From: Yann Hodique <hodiquey@vmware.com>
-Subject: [PATCH] t/feature/freeze
+Subject: [PATCH] t/release/vmw
 
-Allow fleet to "freeze", meaning that it can complete jobs that are
-currently running, but not accept more.
+patches used in vmw environment
