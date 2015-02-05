@@ -1,18 +1,16 @@
-/*
-   Copyright 2014 CoreOS, Inc.
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+// Copyright 2014 CoreOS, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package agent
 
@@ -59,7 +57,7 @@ func (ar *AgentReconciler) Run(a *Agent, stop chan bool) {
 		if elapsed > reconcileInterval {
 			log.Warning(msg)
 		} else {
-			log.V(1).Info(msg)
+			log.Debug(msg)
 		}
 	}
 	reconciler := pkg.NewPeriodicReconciler(reconcileInterval, reconcile, ar.rStream)
@@ -145,7 +143,7 @@ func desiredAgentState(a *Agent, reg registry.Registry) (*AgentState, error) {
 		u := u
 		md := u.RequiredTargetMetadata()
 		if u.IsGlobal() && !machine.HasMetadata(&ms, md) {
-			log.V(1).Infof("Agent unable to run global unit %s: missing required metadata", u.Name)
+			log.Debugf("Agent unable to run global unit %s: missing required metadata", u.Name)
 			continue
 		}
 		if !u.IsGlobal() {
@@ -289,7 +287,7 @@ func (ar *AgentReconciler) calculateTaskChainForUnit(dState *AgentState, cState 
 	}
 
 	if cJHash != dJHash {
-		log.V(1).Infof("Desired hash %q differs to current hash %s of Job(%s) - unloading", dJHash, cJHash, jName)
+		log.Debugf("Desired hash %q differs to current hash %s of Job(%s) - unloading", dJHash, cJHash, jName)
 		tc := newTaskChain(u)
 		tc.Add(task{
 			typ:    taskTypeUnloadUnit,
@@ -314,7 +312,7 @@ func (ar *AgentReconciler) calculateTaskChainForUnit(dState *AgentState, cState 
 	}
 
 	if *cJState == dJob.TargetState {
-		log.V(1).Infof("Desired state %q matches current state of Job(%s), nothing to do", *cJState, jName)
+		log.Debugf("Desired state %q matches current state of Job(%s), nothing to do", *cJState, jName)
 		return nil
 	}
 
@@ -349,7 +347,7 @@ func (ar *AgentReconciler) calculateTaskChainForUnit(dState *AgentState, cState 
 }
 
 func (ar *AgentReconciler) launchTaskChain(tc taskChain, a *Agent) {
-	log.V(1).Infof("AgentReconciler attempting task chain %s", tc)
+	log.Debugf("AgentReconciler attempting task chain %s", tc)
 	reschan, err := ar.tManager.Do(tc, a)
 	if err != nil {
 		log.Infof("AgentReconciler task chain failed: chain=%s err=%v", tc, err)

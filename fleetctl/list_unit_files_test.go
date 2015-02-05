@@ -1,18 +1,16 @@
-/*
-   Copyright 2014 CoreOS, Inc.
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+// Copyright 2014 CoreOS, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package main
 
@@ -82,4 +80,46 @@ func TestListUnitFilesFieldsToStrings(t *testing.T) {
 	suh := listUnitFilesFields["hash"](u, false)
 	assertEqual(t, "hash", uh, fuh)
 	assertEqual(t, "hash", uh[:7], suh)
+}
+
+func TestMapTargetField(t *testing.T) {
+	// seeding the cache for the following test cases
+	machineStates = map[string]*machine.MachineState{
+		"XXX": &machine.MachineState{ID: "XXX"},
+	}
+
+	tests := []struct {
+		unit schema.Unit
+		want string
+	}{
+		// already scheduled
+		{
+			unit: schema.Unit{
+				MachineID: "XXX",
+			},
+			want: "XXX",
+		},
+		// not yet scheduled
+		{
+			unit: schema.Unit{},
+			want: "-",
+		},
+		// global unit
+		{
+			unit: schema.Unit{
+				Options: []*schema.UnitOption{
+					&schema.UnitOption{Section: "X-Fleet", Name: "Global", Value: "true"},
+				},
+			},
+			want: "global",
+		},
+	}
+
+	for i, tt := range tests {
+		// eliminate the "full" variable from test cases by hard-coding "true" below
+		got := mapTargetField(tt.unit, true)
+		if tt.want != got {
+			t.Errorf("case %d: want=%q got=%q", i, tt.want, got)
+		}
+	}
 }
