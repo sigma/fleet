@@ -1,18 +1,16 @@
-/*
-   Copyright 2014 CoreOS, Inc.
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+// Copyright 2014 CoreOS, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package main
 
@@ -78,7 +76,7 @@ func main() {
 		log.Fatalf(err.Error())
 	}
 
-	log.V(1).Infof("Creating Server")
+	log.Debugf("Creating Server")
 	srv, err := server.New(*cfg)
 	if err != nil {
 		log.Fatalf("Failed creating Server: %v", err.Error())
@@ -126,7 +124,7 @@ func main() {
 
 		os.Stdout.Write([]byte("\n"))
 
-		log.V(1).Infof("Finished dumping server state")
+		log.Debugf("Finished dumping server state")
 	}
 
 	signals := map[os.Signal]func(){
@@ -192,7 +190,10 @@ func getConfig(flagset *flag.FlagSet, userCfgFile string) (*config.Config, error
 		log.Error("Config option authorized_keys_file is no longer supported - ignoring")
 	}
 
-	log.SetVerbosity(cfg.Verbosity)
+	if cfg.Verbosity > 0 {
+		log.EnableDebug()
+	}
+
 	return &cfg, nil
 }
 
