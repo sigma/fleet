@@ -53,6 +53,12 @@ ListenStream=127.0.0.1:49153
 
 After you've written the file, call `systemctl daemon-reload` to load the new drop-in, followed by `systemctl stop fleet.service; systemctl restart fleet.socket; systemctl start fleet.service`.
 
+Once the socket is running, the fleet API will be available at `http://${ListenStream}/fleet/v1`, where `${ListenStream}` is the value of the `ListenStream` option used in your socket file.
+This endpoint is accessible directly using tools such as curl and wget, or you can use fleetctl like so: `fleetctl --driver API --endpoint http://${ListenStream} <command>`.
+For more information, see the [official API documentation][api-doc].
+
+[api-doc]: https://github.com/coreos/fleet/blob/master/Documentation/api-v1.md
+
 # Configuration
 
 The `fleetd` daemon uses two sources for configuration parameters:
@@ -74,7 +80,8 @@ $ FLEET_ETCD_SERVERS=http://192.0.2.12:4001 /usr/bin/fleetd
 
 #### verbosity
 
-Increase the amount of log information. Acceptable values are 0, 1, and 2 - higher values are more verbose.
+Enable debug logging by setting this to an integer value greater than zero.
+Only a single debug level exists, so all values greater than zero are considered equivalent.
 
 Default: 0
 
@@ -105,7 +112,7 @@ Default: ""
 
 #### metadata
 
-Comma-delimited key/value pairs that are published with the local to the fleet registry. This data can be used directly by a client of fleet to make scheduling descisions. An example set of metadata could look like:  
+Comma-delimited key/value pairs that are published with the local to the fleet registry. This data can be used directly by a client of fleet to make scheduling decisions. An example set of metadata could look like:  
 
 	metadata="region=us-west,az=us-west-1"
 

@@ -1,18 +1,16 @@
-/*
-   Copyright 2014 CoreOS, Inc.
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+// Copyright 2014 CoreOS, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package heart
 
@@ -39,7 +37,7 @@ func (m *Monitor) Monitor(hrt Heart, stop chan bool) error {
 	for {
 		select {
 		case <-stop:
-			log.V(1).Info("Monitor exiting due to stop signal")
+			log.Debug("Monitor exiting due to stop signal")
 			return nil
 		case <-ticker:
 			if _, err := m.check(hrt); err != nil {
@@ -67,7 +65,7 @@ func (m *Monitor) check(hrt Heart) (idx uint64, err error) {
 		case <-next:
 			idx, err = hrt.Beat(m.TTL)
 			if err != nil {
-				log.V(1).Infof("Monitor heartbeat function returned err, retrying in %v: %v", interval, err)
+				log.Debugf("Monitor heartbeat function returned err, retrying in %v: %v", interval, err)
 			}
 
 			next = time.After(interval)

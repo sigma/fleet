@@ -1,18 +1,16 @@
-/*
-   Copyright 2014 CoreOS, Inc.
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+// Copyright 2014 CoreOS, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package agent
 
@@ -200,7 +198,7 @@ func (p *UnitStatePublisher) Purge() {
 func newPublisher(reg registry.Registry, ttl time.Duration) publishFunc {
 	return func(name string, us *unit.UnitState) {
 		if us == nil {
-			log.V(1).Infof("Destroying UnitState(%s) in Registry", name)
+			log.Debugf("Destroying UnitState(%s) in Registry", name)
 			err := reg.RemoveUnitState(name)
 			if err != nil {
 				log.Errorf("Failed to destroy UnitState(%s) in Registry: %v", name, err)
@@ -217,7 +215,7 @@ func newPublisher(reg registry.Registry, ttl time.Duration) publishFunc {
 			if len(us.MachineID) == 0 {
 				log.Errorf("Refusing to push UnitState(%s), no MachineID: %#v", name, us)
 			} else {
-				log.V(1).Infof("Pushing UnitState(%s) to Registry: %#v", name, us)
+				log.Debugf("Pushing UnitState(%s) to Registry: %#v", name, us)
 				reg.SaveUnitState(name, us, ttl)
 			}
 		}
