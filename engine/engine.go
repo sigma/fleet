@@ -1,18 +1,16 @@
-/*
-   Copyright 2014 CoreOS, Inc.
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+// Copyright 2014 CoreOS, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package engine
 
@@ -23,6 +21,7 @@ import (
 	"github.com/coreos/fleet/log"
 	"github.com/coreos/fleet/machine"
 	"github.com/coreos/fleet/pkg"
+	"github.com/coreos/fleet/pkg/lease"
 	"github.com/coreos/fleet/registry"
 )
 
@@ -38,21 +37,21 @@ type Engine struct {
 	rec       *Reconciler
 	registry  registry.Registry
 	cRegistry registry.ClusterRegistry
-	lRegistry registry.LeaseRegistry
+	lManager  lease.Manager
 	rStream   pkg.EventStream
 	machine   machine.Machine
 
-	lease   registry.Lease
+	lease   lease.Lease
 	trigger chan struct{}
 }
 
-func New(reg *registry.EtcdRegistry, rStream pkg.EventStream, mach machine.Machine) *Engine {
+func New(reg *registry.EtcdRegistry, lManager lease.Manager, rStream pkg.EventStream, mach machine.Machine) *Engine {
 	rec := NewReconciler()
 	return &Engine{
 		rec:       rec,
 		registry:  reg,
 		cRegistry: reg,
-		lRegistry: reg,
+		lManager:  lManager,
 		rStream:   rStream,
 		machine:   mach,
 		trigger:   make(chan struct{}),
@@ -68,11 +67,11 @@ func (e *Engine) Run(ival time.Duration, stop chan bool) {
 			return
 		}
 
-		var l registry.Lease
+		var l lease.Lease
 		if isLeader(e.lease, machID) {
 			l = renewLeadership(e.lease, leaseTTL)
 		} else {
-			l = acquireLeadership(e.lRegistry, machID, engineVersion, leaseTTL)
+			l = acquireLeadership(e.lManager, machID, engineVersion, leaseTTL)
 		}
 
 		// log all leadership changes
@@ -115,7 +114,7 @@ func (e *Engine) Run(ival time.Duration, stop chan bool) {
 		if elapsed > ival {
 			log.Warning(msg)
 		} else {
-			log.V(1).Info(msg)
+			log.Debug(msg)
 		}
 	}
 
@@ -134,7 +133,7 @@ func (e *Engine) Purge() {
 	}
 }
 
-func isLeader(l registry.Lease, machID string) bool {
+func isLeader(l lease.Lease, machID string) bool {
 	if l == nil {
 		return false
 	}
@@ -159,28 +158,28 @@ func ensureEngineVersionMatch(cReg registry.ClusterRegistry, expect int) bool {
 		}
 		log.Infof("Updated cluster engine version from %d to %d", v, expect)
 	} else if v > expect {
-		log.V(1).Infof("Cluster engine version higher than local engine version (%d > %d), unable to participate", v, expect)
+		log.Debugf("Cluster engine version higher than local engine version (%d > %d), unable to participate", v, expect)
 		return false
 	}
 
 	return true
 }
 
-func acquireLeadership(lReg registry.LeaseRegistry, machID string, ver int, ttl time.Duration) registry.Lease {
-	existing, err := lReg.GetLease(engineLeaseName)
+func acquireLeadership(lManager lease.Manager, machID string, ver int, ttl time.Duration) lease.Lease {
+	existing, err := lManager.GetLease(engineLeaseName)
 	if err != nil {
 		log.Errorf("Unable to determine current lessee: %v", err)
 		return nil
 	}
 
-	var l registry.Lease
+	var l lease.Lease
 	if existing == nil {
-		l, err = lReg.AcquireLease(engineLeaseName, machID, ver, ttl)
+		l, err = lManager.AcquireLease(engineLeaseName, machID, ver, ttl)
 		if err != nil {
 			log.Errorf("Engine leadership acquisition failed: %v", err)
 			return nil
 		} else if l == nil {
-			log.V(1).Infof("Unable to acquire engine leadership")
+			log.Debugf("Unable to acquire engine leadership")
 			return nil
 		}
 		log.Infof("Engine leadership acquired")
@@ -188,17 +187,17 @@ func acquireLeadership(lReg registry.LeaseRegistry, machID string, ver int, ttl 
 	}
 
 	if existing.Version() >= ver {
-		log.V(1).Infof("Lease already held by Machine(%s) operating at acceptable version %d", existing.MachineID(), existing.Version())
+		log.Debugf("Lease already held by Machine(%s) operating at acceptable version %d", existing.MachineID(), existing.Version())
 		return existing
 	}
 
 	rem := existing.TimeRemaining()
-	l, err = lReg.StealLease(engineLeaseName, machID, ver, ttl+rem, existing.Index())
+	l, err = lManager.StealLease(engineLeaseName, machID, ver, ttl+rem, existing.Index())
 	if err != nil {
 		log.Errorf("Engine leadership steal failed: %v", err)
 		return nil
 	} else if l == nil {
-		log.V(1).Infof("Unable to steal engine leadership")
+		log.Debugf("Unable to steal engine leadership")
 		return nil
 	}
 
@@ -212,14 +211,14 @@ func acquireLeadership(lReg registry.LeaseRegistry, machID string, ver int, ttl 
 	return l
 }
 
-func renewLeadership(l registry.Lease, ttl time.Duration) registry.Lease {
+func renewLeadership(l lease.Lease, ttl time.Duration) lease.Lease {
 	err := l.Renew(ttl)
 	if err != nil {
 		log.Errorf("Engine leadership lost, renewal failed: %v", err)
 		return nil
 	}
 
-	log.V(1).Infof("Engine leadership renewed")
+	log.Debugf("Engine leadership renewed")
 	return l
 }
 
