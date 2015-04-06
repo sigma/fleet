@@ -1,18 +1,16 @@
-/*
-   Copyright 2014 CoreOS, Inc.
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+// Copyright 2014 CoreOS, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package agent
 
@@ -404,7 +402,7 @@ func TestCalculateTasksForJob(t *testing.T) {
 		cState unitStates
 		uName  string
 
-		chain *taskChain
+		want []task
 	}{
 
 		// nil agent state objects should result in no tasks
@@ -412,7 +410,7 @@ func TestCalculateTasksForJob(t *testing.T) {
 			dState: nil,
 			cState: nil,
 			uName:  "foo.service",
-			chain:  nil,
+			want:   nil,
 		},
 
 		// nil job should result in no tasks
@@ -420,7 +418,7 @@ func TestCalculateTasksForJob(t *testing.T) {
 			dState: NewAgentState(&machine.MachineState{ID: "XXX"}),
 			cState: unitStates{},
 			uName:  "foo.service",
-			chain:  nil,
+			want:   nil,
 		},
 
 		// no work needs to be done when current state == desired state
@@ -438,7 +436,7 @@ func TestCalculateTasksForJob(t *testing.T) {
 				},
 			},
 			uName: "foo.service",
-			chain: nil,
+			want:  nil,
 		},
 
 		// no work needs to be done when current state == desired state
@@ -456,7 +454,7 @@ func TestCalculateTasksForJob(t *testing.T) {
 				},
 			},
 			uName: "foo.service",
-			chain: nil,
+			want:  nil,
 		},
 
 		// when current state == desired state but hash differs, unit should be unloaded and then reloaded
@@ -474,23 +472,29 @@ func TestCalculateTasksForJob(t *testing.T) {
 				},
 			},
 			uName: "foo.service",
-			chain: &taskChain{
-				unit: &job.Unit{
-					Name: "foo.service",
-					Unit: unit.UnitFile{},
+			want: []task{
+				task{
+					typ:    taskTypeUnloadUnit,
+					reason: taskReasonLoadedButHashDiffers,
+					unit: &job.Unit{
+						Name: "foo.service",
+						Unit: unit.UnitFile{},
+					},
 				},
-				tasks: []task{
-					task{
-						typ:    taskTypeUnloadUnit,
-						reason: taskReasonLoadedButHashDiffers,
+				task{
+					typ:    taskTypeLoadUnit,
+					reason: taskReasonScheduledButUnloaded,
+					unit: &job.Unit{
+						Name: "foo.service",
+						Unit: unit.UnitFile{},
 					},
-					task{
-						typ:    taskTypeLoadUnit,
-						reason: taskReasonScheduledButUnloaded,
-					},
-					task{
-						typ:    taskTypeStartUnit,
-						reason: taskReasonLoadedDesiredStateLaunched,
+				},
+				task{
+					typ:    taskTypeStartUnit,
+					reason: taskReasonLoadedDesiredStateLaunched,
+					unit: &job.Unit{
+						Name: "foo.service",
+						Unit: unit.UnitFile{},
 					},
 				},
 			},
@@ -511,19 +515,21 @@ func TestCalculateTasksForJob(t *testing.T) {
 				},
 			},
 			uName: "foo.service",
-			chain: &taskChain{
-				unit: &job.Unit{
-					Name: "foo.service",
-					Unit: unit.UnitFile{},
-				},
-				tasks: []task{
-					task{
-						typ:    taskTypeUnloadUnit,
-						reason: taskReasonLoadedButHashDiffers,
+			want: []task{
+				task{
+					typ:    taskTypeUnloadUnit,
+					reason: taskReasonLoadedButHashDiffers,
+					unit: &job.Unit{
+						Name: "foo.service",
+						Unit: unit.UnitFile{},
 					},
-					task{
-						typ:    taskTypeLoadUnit,
-						reason: taskReasonScheduledButUnloaded,
+				},
+				task{
+					typ:    taskTypeLoadUnit,
+					reason: taskReasonScheduledButUnloaded,
+					unit: &job.Unit{
+						Name: "foo.service",
+						Unit: unit.UnitFile{},
 					},
 				},
 			},
@@ -544,23 +550,29 @@ func TestCalculateTasksForJob(t *testing.T) {
 				},
 			},
 			uName: "foo.service",
-			chain: &taskChain{
-				unit: &job.Unit{
-					Name: "foo.service",
-					Unit: unit.UnitFile{},
+			want: []task{
+				task{
+					typ:    taskTypeUnloadUnit,
+					reason: taskReasonLoadedButHashDiffers,
+					unit: &job.Unit{
+						Name: "foo.service",
+						Unit: unit.UnitFile{},
+					},
 				},
-				tasks: []task{
-					task{
-						typ:    taskTypeUnloadUnit,
-						reason: taskReasonLoadedButHashDiffers,
+				task{
+					typ:    taskTypeLoadUnit,
+					reason: taskReasonScheduledButUnloaded,
+					unit: &job.Unit{
+						Name: "foo.service",
+						Unit: unit.UnitFile{},
 					},
-					task{
-						typ:    taskTypeLoadUnit,
-						reason: taskReasonScheduledButUnloaded,
-					},
-					task{
-						typ:    taskTypeStartUnit,
-						reason: taskReasonLoadedDesiredStateLaunched,
+				},
+				task{
+					typ:    taskTypeStartUnit,
+					reason: taskReasonLoadedDesiredStateLaunched,
+					unit: &job.Unit{
+						Name: "foo.service",
+						Unit: unit.UnitFile{},
 					},
 				},
 			},
@@ -576,7 +588,7 @@ func TestCalculateTasksForJob(t *testing.T) {
 			},
 			cState: unitStates{},
 			uName:  "foo.service",
-			chain:  nil,
+			want:   nil,
 		},
 
 		// load jobs that have a loaded desired state
@@ -589,15 +601,13 @@ func TestCalculateTasksForJob(t *testing.T) {
 			},
 			cState: unitStates{},
 			uName:  "foo.service",
-			chain: &taskChain{
-				unit: &job.Unit{
-					Name: "foo.service",
-					Unit: unit.UnitFile{},
-				},
-				tasks: []task{
-					task{
-						typ:    taskTypeLoadUnit,
-						reason: taskReasonScheduledButUnloaded,
+			want: []task{
+				task{
+					typ:    taskTypeLoadUnit,
+					reason: taskReasonScheduledButUnloaded,
+					unit: &job.Unit{
+						Name: "foo.service",
+						Unit: unit.UnitFile{},
 					},
 				},
 			},
@@ -613,18 +623,19 @@ func TestCalculateTasksForJob(t *testing.T) {
 			},
 			cState: unitStates{},
 			uName:  "foo.service",
-			chain: &taskChain{
-				unit: &job.Unit{
-					Name: "foo.service",
-				},
-				tasks: []task{
-					task{
-						typ:    taskTypeLoadUnit,
-						reason: taskReasonScheduledButUnloaded,
+			want: []task{
+				task{
+					typ:    taskTypeLoadUnit,
+					reason: taskReasonScheduledButUnloaded,
+					unit: &job.Unit{
+						Name: "foo.service",
 					},
-					task{
-						typ:    taskTypeStartUnit,
-						reason: taskReasonLoadedDesiredStateLaunched,
+				},
+				task{
+					typ:    taskTypeStartUnit,
+					reason: taskReasonLoadedDesiredStateLaunched,
+					unit: &job.Unit{
+						Name: "foo.service",
 					},
 				},
 			},
@@ -640,14 +651,12 @@ func TestCalculateTasksForJob(t *testing.T) {
 				},
 			},
 			uName: "foo.service",
-			chain: &taskChain{
-				unit: &job.Unit{
-					Name: "foo.service",
-				},
-				tasks: []task{
-					task{
-						typ:    taskTypeUnloadUnit,
-						reason: taskReasonLoadedButNotScheduled,
+			want: []task{
+				task{
+					typ:    taskTypeUnloadUnit,
+					reason: taskReasonLoadedButNotScheduled,
+					unit: &job.Unit{
+						Name: "foo.service",
 					},
 				},
 			},
@@ -663,14 +672,12 @@ func TestCalculateTasksForJob(t *testing.T) {
 				},
 			},
 			uName: "foo.service",
-			chain: &taskChain{
-				unit: &job.Unit{
-					Name: "foo.service",
-				},
-				tasks: []task{
-					task{
-						typ:    taskTypeUnloadUnit,
-						reason: taskReasonLoadedButNotScheduled,
+			want: []task{
+				task{
+					typ:    taskTypeUnloadUnit,
+					reason: taskReasonLoadedButNotScheduled,
+					unit: &job.Unit{
+						Name: "foo.service",
 					},
 				},
 			},
@@ -693,14 +700,12 @@ func TestCalculateTasksForJob(t *testing.T) {
 				},
 			},
 			uName: "foo.service",
-			chain: &taskChain{
-				unit: &job.Unit{
-					Name: "foo.service",
-				},
-				tasks: []task{
-					task{
-						typ:    taskTypeUnloadUnit,
-						reason: taskReasonLoadedButNotScheduled,
+			want: []task{
+				task{
+					typ:    taskTypeUnloadUnit,
+					reason: taskReasonLoadedButNotScheduled,
+					unit: &job.Unit{
+						Name: "foo.service",
 					},
 				},
 			},
@@ -709,15 +714,9 @@ func TestCalculateTasksForJob(t *testing.T) {
 
 	for i, tt := range tests {
 		ar := NewReconciler(registry.NewFakeRegistry(), nil)
-		chain := ar.calculateTaskChainForUnit(tt.dState, tt.cState, tt.uName)
-		if !reflect.DeepEqual(tt.chain, chain) {
-			t.Errorf("case %d: calculated incorrect task chain\nexpected=%#v\nreceived=%#v\n", i, tt.chain, chain)
-			if c := tt.chain; c != nil {
-				t.Logf("expected Unit: %#v", *c.unit)
-			}
-			if c := chain; c != nil {
-				t.Logf("received Unit: %#v", *c.unit)
-			}
+		got := ar.calculateTasksForUnit(tt.dState, tt.cState, tt.uName)
+		if !reflect.DeepEqual(tt.want, got) {
+			t.Errorf("case %d: calculated incorrect tasks\nexpected=%#v\nreceived=%#v\n", i, tt.want, got)
 		}
 	}
 }

@@ -1,18 +1,16 @@
-/*
-   Copyright 2014 CoreOS, Inc.
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+// Copyright 2014 CoreOS, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package main
 
@@ -90,6 +88,7 @@ var (
 		KnownHostsFile        string
 		StrictHostKeyChecking bool
 		SSHTimeout            float64
+		SSHUserName           string
 
 		EtcdKeyPrefix string
 	}{}
@@ -131,6 +130,7 @@ func init() {
 	globalFlagset.Float64Var(&globalFlags.SSHTimeout, "ssh-timeout", 10.0, "Amount of time in seconds to allow for SSH connection initialization before failing.")
 	globalFlagset.StringVar(&globalFlags.Tunnel, "tunnel", "", "Establish an SSH tunnel through the provided address for communication with fleet and etcd.")
 	globalFlagset.Float64Var(&globalFlags.RequestTimeout, "request-timeout", 3.0, "Amount of time in seconds to allow a single request before considering it failed.")
+	globalFlagset.StringVar(&globalFlags.SSHUserName, "ssh-username", "core", "Username to use when connecting to CoreOS instance.")
 
 	// deprecated flags
 	globalFlagset.BoolVar(&globalFlags.ExperimentalAPI, "experimental-api", false, hidden)
@@ -225,7 +225,7 @@ func main() {
 	getFlagsFromEnv(cliName, globalFlagset)
 
 	if globalFlags.Debug {
-		log.SetVerbosity(1)
+		log.EnableDebug()
 	}
 
 	if globalFlags.Version {
@@ -297,7 +297,7 @@ func getFlagsFromEnv(prefix string, fs *flag.FlagSet) {
 // getClient initializes a client of fleet based on CLI flags
 func getClient() (client.API, error) {
 	// The user explicitly set --experimental-api=true, so it trumps the
-	// --driver flag. This behavior exists for backwards-compatibilty.
+	// --driver flag. This behavior exists for backwards-compatibility.
 	if globalFlags.ExperimentalAPI {
 		return getHTTPClient()
 	}
@@ -329,7 +329,7 @@ func getHTTPClient() (client.API, error) {
 
 	tunnelFunc := net.Dial
 	if tunneling {
-		sshClient, err := ssh.NewSSHClient("core", tun, getChecker(), true, getSSHTimeoutFlag())
+		sshClient, err := ssh.NewSSHClient(globalFlags.SSHUserName, tun, getChecker(), true, getSSHTimeoutFlag())
 		if err != nil {
 			return nil, fmt.Errorf("failed initializing SSH client: %v", err)
 		}
@@ -337,7 +337,7 @@ func getHTTPClient() (client.API, error) {
 		if dialUnix {
 			tgt := ep.Path
 			tunnelFunc = func(string, string) (net.Conn, error) {
-				log.V(1).Infof("Establishing remote fleetctl proxy to %s", tgt)
+				log.Debugf("Establishing remote fleetctl proxy to %s", tgt)
 				cmd := fmt.Sprintf(`fleetctl fd-forward %s`, tgt)
 				return ssh.DialCommand(sshClient, cmd)
 			}
@@ -399,7 +399,7 @@ func getRegistryClient() (client.API, error) {
 	var dial func(string, string) (net.Conn, error)
 	tun := getTunnelFlag()
 	if tun != "" {
-		sshClient, err := ssh.NewSSHClient("core", tun, getChecker(), false, getSSHTimeoutFlag())
+		sshClient, err := ssh.NewSSHClient(globalFlags.SSHUserName, tun, getChecker(), false, getSSHTimeoutFlag())
 		if err != nil {
 			return nil, fmt.Errorf("failed initializing SSH client: %v", err)
 		}
@@ -458,7 +458,7 @@ func getUnitFromFile(file string) (*unit.UnitFile, error) {
 	}
 
 	unitName := path.Base(file)
-	log.V(1).Infof("Unit(%s) found in local filesystem", unitName)
+	log.Debugf("Unit(%s) found in local filesystem", unitName)
 
 	return unit.NewUnitFile(string(out))
 }
@@ -547,7 +547,7 @@ func createUnit(name string, uf *unit.UnitFile) (*schema.Unit, error) {
 		return nil, fmt.Errorf("failed creating unit %s: %v", name, err)
 	}
 
-	log.V(1).Infof("Created Unit(%s) in Registry", name)
+	log.Debugf("Created Unit(%s) in Registry", name)
 	return &u, nil
 }
 
@@ -574,7 +574,7 @@ func lazyCreateUnits(args []string) error {
 			return fmt.Errorf("error retrieving Unit(%s) from Registry: %v", name, err)
 		}
 		if u != nil {
-			log.V(1).Infof("Found Unit(%s) in Registry, no need to recreate it", name)
+			log.Debugf("Found Unit(%s) in Registry, no need to recreate it", name)
 			warnOnDifferentLocalUnit(arg, u)
 			continue
 		}
@@ -680,11 +680,11 @@ func setTargetStateOfUnits(units []string, state job.JobState) ([]*schema.Unit, 
 		} else if u == nil {
 			return nil, fmt.Errorf("unable to find unit %s", name)
 		} else if job.JobState(u.DesiredState) == state {
-			log.V(1).Infof("Unit(%s) already %s, skipping.", u.Name, u.DesiredState)
+			log.Debugf("Unit(%s) already %s, skipping.", u.Name, u.DesiredState)
 			continue
 		}
 
-		log.V(1).Infof("Setting Unit(%s) target state to %s", u.Name, state)
+		log.Debugf("Setting Unit(%s) target state to %s", u.Name, state)
 		cAPI.SetUnitTargetState(u.Name, string(state))
 		triggered = append(triggered, u)
 	}
